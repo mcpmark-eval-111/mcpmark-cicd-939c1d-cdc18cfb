@@ -1,0 +1,60 @@
+name: Test No Rollback
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pre_deployment:
+    name: pre-deployment
+    runs-on: ubuntu-latest
+    outputs:
+      previous_sha: ${{ steps.commit_info.outputs.previous_sha }}
+      current_sha: ${{ steps.commit_info.outputs.current_sha }}
+      package_version: ${{ steps.commit_info.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: commit_info
+        run: |
+          set -e
+          CURRENT_SHA="${GITHUB_SHA}"
+          PREVIOUS_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo none)"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo 0.0.0)"
+          echo "previous_sha=${PREVIOUS_SHA}" >> "$GITHUB_OUTPUT"
+          echo "current_sha=${CURRENT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
+      - id: create_issue
+        uses: actions/github-script@v7
+        env:
+          CURRENT_SHA: ${{ steps.commit_info.outputs.current_sha }}
+        with:
+          script: |
+            const sha = process.env.CURRENT_SHA;
+            const result = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Test Tracking - ${sha}`,
+              body: 'test',
+              labels: ['deployment', 'in-progress'],
+            });
+            core.setOutput('issue_number', result.data.number);
+
+  post_deployment:
+    name: post-deployment
+    runs-on: ubuntu-latest
+    needs: pre_deployment
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          CURRENT_SHA: ${{ needs.pre_deployment.outputs.current_sha }}
+        with:
+          script: |
+            const sha = process.env.CURRENT_SHA;
+            console.log('post deploy sha', sha);
