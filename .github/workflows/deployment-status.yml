@@ -60,7 +60,7 @@ jobs:
                 `- **Current Commit:** ${sha}`,
                 `- **Previous Commit:** ${previousSha}`,
                 `- **Package Version:** ${packageVersion}`,
-                `- **Workflow Run:** ${context.runId}`,
+                
                 '',
                 'This issue tracks the deployment lifecycle.',
               ].join('
