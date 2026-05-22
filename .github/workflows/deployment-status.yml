@@ -73,33 +73,3 @@ jobs:
             });
             core.setOutput('issue_number', result.data.number);
             return result.data.number;
-      - name: Post pre-deployment comment
-        uses: actions/github-script@v7
-        env:
-          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-          CURRENT_SHA: ${{ steps.commit_info.outputs.current_sha }}
-          PREVIOUS_SHA: ${{ steps.commit_info.outputs.previous_sha }}
-          PACKAGE_VERSION: ${{ steps.commit_info.outputs.package_version }}
-        with:
-          script: |
-            const issueNumber = Number(process.env.ISSUE_NUMBER);
-            const previousSha = process.env.PREVIOUS_SHA;
-            const currentSha = process.env.CURRENT_SHA;
-            const packageVersion = process.env.PACKAGE_VERSION;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: [
-                '### ✅ Pre-deployment checks completed',
-                '',
-                '- Lint: passed',
-                '- Tests: passed',
-                `- Previous Commit: ${previousSha}`,
-                `- Current Commit: ${currentSha}`,
-                `- Package Version: ${packageVersion}`,
-                '',
-                'Proceeding to rollback preparation.',
-              ].join('
-'),
-            });
