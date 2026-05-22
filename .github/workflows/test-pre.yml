@@ -1,0 +1,35 @@
+name: Test Pre
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  issues: write
+jobs:
+  pre_deployment:
+    name: pre-deployment
+    runs-on: ubuntu-latest
+    outputs:
+      previous_sha: ${{ steps.commit_info.outputs.previous_sha }}
+      current_sha: ${{ steps.commit_info.outputs.current_sha }}
+      package_version: ${{ steps.commit_info.outputs.package_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Capture commit info
+        id: commit_info
+        run: |
+          set -e
+          CURRENT_SHA="${GITHUB_SHA}"
+          PREVIOUS_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo none)"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo 0.0.0)"
+          echo "previous_sha=${PREVIOUS_SHA}" >> "$GITHUB_OUTPUT"
+          echo "current_sha=${CURRENT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
