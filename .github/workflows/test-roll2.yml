@@ -1,0 +1,68 @@
+name: Test Rollback 2
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  issues: write
+jobs:
+  pre_deployment:
+    name: pre-deployment
+    runs-on: ubuntu-latest
+    outputs:
+      previous_sha: ${{ steps.commit_info.outputs.previous_sha }}
+      current_sha: ${{ steps.commit_info.outputs.current_sha }}
+      package_version: ${{ steps.commit_info.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: commit_info
+        run: |
+          set -e
+          echo "previous_sha=abc" >> "$GITHUB_OUTPUT"
+          echo "current_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "package_version=1.0.0" >> "$GITHUB_OUTPUT"
+
+  rollback_preparation:
+    name: rollback-preparation
+    runs-on: ubuntu-latest
+    needs: pre_deployment
+    env:
+      PREVIOUS_SHA: ${{ needs.pre_deployment.outputs.previous_sha }}
+      CURRENT_SHA: ${{ needs.pre_deployment.outputs.current_sha }}
+      PACKAGE_VERSION: ${{ needs.pre_deployment.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prep
+        run: |
+          mkdir -p rollback-package/docs
+      - name: Create rollback documentation
+        run: |
+          set -e
+          cat > rollback-package/docs/ROLLBACK.md <<DOC_EOF
+          # Rollback Documentation
+
+          ## Overview
+          This package provides a complete rollback bundle for the deployment of commit
+          \`${CURRENT_SHA}\`.
+
+          ## Step-by-step rollback instructions
+
+          1. Download the artifact \`rollback-package-${CURRENT_SHA}\` from GitHub Actions.
+          2. Extract the archive:
+             \`\`\`bash
+             tar -xzf rollback-package-${CURRENT_SHA}.tar.gz
+             cd rollback-package
+             \`\`\`
+          3. Verify the SHA256 checksum:
+             \`\`\`bash
+             sha256sum -c checksums.sha256
+             \`\`\`
+
+          ## Quick rollback command
+
+          \`\`\`bash
+          ./rollback-package/scripts/rollback.sh
+          \`\`\`
+          DOC_EOF
+          cat rollback-package/docs/ROLLBACK.md
